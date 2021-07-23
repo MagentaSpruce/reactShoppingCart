@@ -136,4 +136,158 @@ To make the button work, it must once again be set up inside of reducer.js. stat
   }
 ```
 
-At this point the remove item button should be working as intended. 
+At this point the remove item button should be working as intended. Next the button incrementer will be worked on starting with the increase. Again the process starts with a new function added into the AppProvider.
+```React
+  const increase = (id) => {
+    dispatch({type: 'INCREASE', payload: id})
+  }
+  const decrease = (id) => {
+    dispatch({type: 'DECREASE', payload: id})
+  }
+  
+      <AppContext.Provider
+      value={{
+        ...state,
+        clearCart,
+        remove,
+        increase,
+        decrease
+      }}
+    >
+```
+
+Next both are destructured in the cardItem and added to the relevant buttons. Using spread operator on cartItem copies all the properties and so only the amount property is changed by +1.
+```React
+  const { remove, increase, decrease } = useGlobalContext();
+      
+      <button className="amount-btn" onClick={() => increase(id)}>
+      <button className="amount-btn" onClick={() => decrease(id)}>
+```     
+
+Next useReduce is setup for increase.
+```React
+  if (action.type === "INCREASE") {
+    let tempCart = state.cart.map((cartItem) => {
+      if (cartItem.id === action.payload) {
+        return { ...cartItem, amount: cartItem.amount + 1 };
+      }
+      return cartItem;
+    });
+    return { ...state, cart: tempCart };
+  }
+```  
+
+At this point the increase button works but changes are not displayed to the navbar or total. Before those are taken care of the decrease functionality is finished installing. To prevent negative items from being possible and to remove the item on 0 the filter method is chained to return an empty cart.
+```React
+  if (action.type === "DECREASE") {
+    let tempCart = state.cart.map((cartItem) => {
+      if (cartItem.id === action.payload) {
+        return { ...cartItem, amount: cartItem.amount - 1 };
+      }
+      return cartItem;
+    }).filter((cartItem) => cartItem.amount !== 0);
+    return { ...state, cart: tempCart };
+  }
+```
+
+Next the values should be updated in the shooping bag and the total whenever the incrementer buttons are used. A useEffect is used to monitor changes in the cart.
+```React
+  useEffect(()=>{
+    console.log('hello');
+    
+  },[state.cart])
+  ```
+  
+  Now an action is dispatched from the useEffect.
+  ```React
+    useEffect(() => {
+    dispatch({ type: "GET_TOTALS" });
+  }, [state.cart]);
+  ```
+  
+  Next the reducer is set up to update the amount and total.
+  ```React
+  if (action.type === "GET_TOTALS") {
+    const { total, amount } = state.cart.reduce(
+      (cartTotal, cartItem) => {
+        const { price, amount } = cartItem;
+        const itemTotal = price * amount;
+        cartTotal.total += itemTotal;
+        cartTotal.amount += amount;
+        return cartTotal;
+      },
+      {
+        total: 0,
+        amount: 0,
+      }
+    );
+    return { ...state, total, amount };
+  }
+```
+
+To prevent wonky totals from cropping up the total is parsed and assigned a fix number of digits to be returned.
+```React
+    let { total, amount } = state.cart.reduce(.............
+    
+        total = parseFloat(total.toFixed(2));
+```
+
+At this point the total and amount functionality should be working. Next the ability to fetch data from an API using useReducer is set up. Two dispatches are used, one for rendering the loading screen during fetch and the other to display the fetched items sent as response.
+```React
+  const fetchData = async () => {
+    dispatch({ type: "LOADING" });
+    const response = await fetch(url);
+    const cart = await response.json();
+    dispatch({type: 'DISPLAY_ITEMS', payload:cart});
+  };
+```
+
+To call this function another useEffect is added.
+```React
+  useEffect(() => {
+    fetchData();
+  }, []);
+```
+
+Next the reducer is set up for loading and displaying the items.
+```React
+  if (action.type === "LOADING") {
+    return { ...state, loading: true };
+  }
+  
+  if (action.type === "DISPLAY_ITEMS") {
+    return { ...state, cart: action.payload, loading: false };
+  }
+```
+
+This returns the fetched data and the rest of the functionality all works. The application is complete - however, a refactoring did occur in keeping with DRY principles.
+```React
+  const toggleAmount = (id, type) => {
+    dispatch({ type: "TOGGLE_AMOUNT", payload: { id, type } });
+  };
+  
+  
+    const { remove, increase, decrease, toggleAmount } = useGlobalContext();
+    
+            <button className="amount-btn" onClick={() => toggleAmount(id, 'inc')}>
+            <button className="amount-btn" onClick={() => toggleAmount(id, "dec")}>
+            
+      if (action.type === "TOGGLE_AMOUNT") {
+    let tempCart = state.cart.map((cartItem) => {
+      if (cartItem.id === action.payload.id) {
+        if (action.payload.type === "inc") {
+          return { ...cartItem, amount: cartItem.amount + 1 };
+        }
+        if (action.payload.type === "dec") {
+          return { ...cartItem, amount: cartItem.amount - 1 };
+        }
+      }
+      return cartItem;
+    });
+    return { ...state, cart: tempCart };
+  }
+```
+
+
+***End walkthrough
+  
